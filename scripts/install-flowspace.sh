@@ -168,9 +168,25 @@ api_request() {
     local token
     
     if token=$(get_github_token); then
-        curl -H "Authorization: token $token" -sSfL "$url"
+        local response
+        local http_code
+        response=$(curl -w "%{http_code}" -H "Authorization: token $token" -sSfL "$url" 2>&1)
+        http_code="${response: -3}"
+        if [[ "$http_code" != "200" ]]; then
+            warn "API request failed with HTTP $http_code for: $url" >&2
+            return 1
+        fi
+        echo "${response%???}"  # Remove last 3 characters (HTTP code)
     else
-        curl -sSfL "$url"
+        local response
+        local http_code
+        response=$(curl -w "%{http_code}" -sSfL "$url" 2>&1)
+        http_code="${response: -3}"
+        if [[ "$http_code" != "200" ]]; then
+            warn "API request failed with HTTP $http_code for: $url" >&2
+            return 1
+        fi
+        echo "${response%???}"  # Remove last 3 characters (HTTP code)
     fi
 }
 
@@ -402,7 +418,7 @@ get_release_checksum() {
         checksums_url="https://github.com/$GITHUB_REPO/releases/download/$version/checksums.txt"
     fi
     
-    info "Fetching checksums..."
+    info "Fetching checksums..." >&2
     
     local checksum
     if [[ "$checksums_url" == file://* ]]; then
@@ -430,16 +446,16 @@ get_latest_version() {
     local version
     local repo_visibility
     
-    info "Fetching latest version from GitHub..."
+    info "Fetching latest version from GitHub..." >&2
     
     # Detect if repo is private and show appropriate message
     repo_visibility=$(detect_repo_visibility "$GITHUB_REPO")
     if [[ "$repo_visibility" == "private" ]]; then
-        info "Detected private repository, using authenticated access"
+        info "Detected private repository, using authenticated access" >&2
     elif [[ "$repo_visibility" == "public" ]]; then
-        info "Detected public repository"
+        info "Detected public repository" >&2
     else
-        warn "Could not determine repository visibility"
+        warn "Could not determine repository visibility" >&2
     fi
     
     # Try to get version from GitHub API with authentication if available
@@ -452,15 +468,15 @@ get_latest_version() {
     
     if [[ -z "$version" ]] || [[ "$version" == "null" ]]; then
         if [[ "$repo_visibility" == "private" ]]; then
-            error "Could not fetch latest version from private repository"
-            error "Please ensure you have access to $GITHUB_REPO"
-            error "Check your Git credentials: git credential fill"
+            error "Could not fetch latest version from private repository" >&2
+            error "Please ensure you have access to $GITHUB_REPO" >&2
+            error "Check your Git credentials: git credential fill" >&2
             exit 1
         else
-            warn "Could not fetch latest version from GitHub API"
+            warn "Could not fetch latest version from GitHub API" >&2
             # Fallback to a known version pattern
             version="v0.0.1"
-            warn "Using fallback version: $version"
+            warn "Using fallback version: $version" >&2
         fi
     fi
     
