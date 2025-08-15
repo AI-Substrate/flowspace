@@ -6,7 +6,6 @@
 #   or:  FLOWSPACE_BASE_URL="file:///path/to/releases" bash install-flowspace.sh
 #
 # Command line options:
-#   -f, --force             Force reinstall if already exists
 #   -v, --version VERSION   Install specific version (default: latest)
 #   -d, --install-dir DIR   Installation directory (default: ~/.local/bin)
 #   --base-url URL          Override download URL (supports file://)
@@ -17,7 +16,6 @@
 #   FLOWSPACE_BASE_URL     - Override download URL (supports file:// for local testing)
 #   FLOWSPACE_INSTALL_DIR  - Installation directory (default: ~/.local/bin)
 #   FLOWSPACE_VERSION      - Version to install (default: latest)
-#   FLOWSPACE_FORCE        - Force reinstall if already exists (default: false)
 #   FLOWSPACE_USE_GCM_AUTH - Use Git Credential Manager for GitHub auth (default: true)
 
 set -euo pipefail
@@ -25,10 +23,6 @@ set -euo pipefail
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -f|--force)
-            FORCE_INSTALL="true"
-            shift
-            ;;
         -v|--version)
             VERSION="$2"
             shift 2
@@ -52,7 +46,6 @@ Flowspace (Substrate) Installation Script
 Usage: $0 [OPTIONS]
 
 Options:
-    -f, --force             Force reinstall if already exists
     -v, --version VERSION   Install specific version (default: latest)
     -d, --install-dir DIR   Installation directory (default: ~/.local/bin)
     --base-url URL          Override download URL (supports file://)
@@ -63,12 +56,10 @@ Environment variables:
     FLOWSPACE_BASE_URL      Override download URL
     FLOWSPACE_INSTALL_DIR   Installation directory (default: ~/.local/bin)
     FLOWSPACE_VERSION       Version to install
-    FLOWSPACE_FORCE         Force reinstall (true/false)
     FLOWSPACE_USE_GCM_AUTH  Use Git Credential Manager (true/false)
 
 Examples:
     $0                                    # Install latest version
-    $0 --force                           # Force reinstall
     $0 --version v1.0.0                  # Install specific version
     $0 --install-dir /usr/local/bin      # Install to system directory
     $0 --base-url file:///path/to/files  # Install from local files
@@ -96,7 +87,6 @@ GITHUB_REPO="AI-Substrate/flowspace"
 BINARY_NAME="flowspace"
 INSTALL_DIR="${FLOWSPACE_INSTALL_DIR:-${INSTALL_DIR:-$(get_default_install_dir)}}"
 VERSION="${FLOWSPACE_VERSION:-${VERSION:-latest}}"
-FORCE_INSTALL="${FLOWSPACE_FORCE:-${FORCE_INSTALL:-false}}"
 BASE_URL="${FLOWSPACE_BASE_URL:-${BASE_URL:-}}"
 USE_GCM_AUTH="${FLOWSPACE_USE_GCM_AUTH:-${USE_GCM_AUTH:-false}}"
 
@@ -108,10 +98,10 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Logging functions
-info() { echo -e "${BLUE}[INFO]${NC} $*"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
+info() { echo "ℹ️  $*"; }
+warn() { echo "⚠️  $*"; }
+error() { echo "❌  $*" >&2; }
+success() { echo "✅ $*"; }
 
 # Git Credential Manager integration
 get_github_token() {
@@ -406,32 +396,52 @@ verify_checksum() {
     fi
 }
 
-# Get checksum for a specific release asset
+# Get checksum for a specific release asset from GitHub API
 get_release_checksum() {
     local version="$1"
     local archive_name="$2"
     
-    local checksums_url
-    if [[ -n "$BASE_URL" ]]; then
-        checksums_url="$BASE_URL/checksums.txt"
-    else
-        checksums_url="https://github.com/$GITHUB_REPO/releases/download/$version/checksums.txt"
+    info "Fetching asset checksum from GitHub API..." >&2
+    
+    local api_url="https://api.github.com/repos/$GITHUB_REPO/releases/tags/$version"
+    local checksum=""
+    
+    # Try to get asset info from GitHub API
+    local release_data
+    if release_data=$(api_request "$api_url" 2>/dev/null); then
+        # Extract the digest for the specific asset
+        if command -v jq >/dev/null 2>&1; then
+            # Use jq if available for robust JSON parsing
+            checksum=$(echo "$release_data" | jq -r --arg name "$archive_name" '.assets[] | select(.name == $name) | .digest // empty' 2>/dev/null | sed 's/^sha256://' || echo "")
+        else
+            # Fallback without jq - look for the asset and extract digest
+            # This is more fragile but works without jq dependency
+            local asset_section
+            asset_section=$(echo "$release_data" | grep -A 20 "\"name\": \"$archive_name\"" 2>/dev/null || echo "")
+            if [[ -n "$asset_section" ]]; then
+                checksum=$(echo "$asset_section" | grep '"digest"' | head -1 | sed 's/.*"digest": *"sha256:\([^"]*\)".*/\1/' 2>/dev/null || echo "")
+            fi
+        fi
     fi
     
-    info "Fetching checksums..." >&2
-    
-    local checksum
-    if [[ "$checksums_url" == file://* ]]; then
-        # Handle file:// URLs
-        local file_path="${checksums_url#file://}"
-        if [[ -f "$file_path" ]]; then
-            checksum=$(grep "$archive_name" "$file_path" 2>/dev/null | cut -d' ' -f1 || echo "")
-        fi
-    else
-        # Handle HTTP/HTTPS URLs with authentication if available
+    # If GitHub API doesn't provide digest, try fallback to checksums.txt
+    if [[ -z "$checksum" ]] && [[ -z "$BASE_URL" ]]; then
+        warn "No digest available from GitHub API, trying checksums.txt fallback..." >&2
+        local checksums_url="https://github.com/$GITHUB_REPO/releases/download/$version/checksums.txt"
         local token
         if token=$(get_github_token) && [[ "$checksums_url" == *"github.com"* ]]; then
             checksum=$(curl -H "Authorization: token $token" -sSfL "$checksums_url" 2>/dev/null | grep "$archive_name" | cut -d' ' -f1 || echo "")
+        else
+            checksum=$(curl -sSfL "$checksums_url" 2>/dev/null | grep "$archive_name" | cut -d' ' -f1 || echo "")
+        fi
+    elif [[ -n "$BASE_URL" ]]; then
+        # Handle custom BASE_URL (for local testing)
+        local checksums_url="$BASE_URL/checksums.txt"
+        if [[ "$checksums_url" == file://* ]]; then
+            local file_path="${checksums_url#file://}"
+            if [[ -f "$file_path" ]]; then
+                checksum=$(grep "$archive_name" "$file_path" 2>/dev/null | cut -d' ' -f1 || echo "")
+            fi
         else
             checksum=$(curl -sSfL "$checksums_url" 2>/dev/null | grep "$archive_name" | cut -d' ' -f1 || echo "")
         fi
@@ -597,14 +607,9 @@ install_binary() {
         mkdir -p "$INSTALL_DIR"
     fi
     
-    # Check if binary already exists
-    if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]] && [[ "$FORCE_INSTALL" != "true" ]]; then
-        local existing_version
-        existing_version=$("$INSTALL_DIR/$BINARY_NAME" --version 2>/dev/null | head -n1 || echo "unknown")
-        warn "Flowspace is already installed: $existing_version"
-        warn "Use FLOWSPACE_FORCE=true to overwrite"
-        rm -rf "$temp_dir"
-        exit 1
+    # Check if binary already exists and show info
+    if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]]; then
+        info "Updating existing flowspace installation"
     fi
     
     info "Installing binary to $INSTALL_DIR/$BINARY_NAME..."
@@ -621,11 +626,7 @@ install_binary() {
 
 # Verify installation
 verify_installation() {
-    if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]]; then
-        local version_output
-        version_output=$("$INSTALL_DIR/$BINARY_NAME" --version 2>/dev/null || echo "Version check failed")
-        success "Installation verified: $version_output"
-        
+    if [[ -f "$INSTALL_DIR/$BINARY_NAME" ]]; then        
         # Check if install directory is in PATH
         if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
             warn "Install directory $INSTALL_DIR is not in your PATH"
@@ -637,29 +638,29 @@ verify_installation() {
                 Darwin)
                     info "Add it to your PATH by adding this line to your shell profile:"
                     if [[ "$SHELL" == *"zsh"* ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-                        info "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
-                        info "  source ~/.zshrc"
+                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
+                        echo "   source ~/.zshrc"
                     else
-                        info "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bash_profile"
-                        info "  source ~/.bash_profile"
+                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bash_profile"
+                        echo "   source ~/.bash_profile"
                     fi
                     ;;
                 Linux|*)
                     info "Add it to your PATH by adding this line to your shell profile:"
                     if [[ "$SHELL" == *"zsh"* ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-                        info "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
-                        info "  source ~/.zshrc"
+                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
+                        echo "   source ~/.zshrc"
                     else
-                        info "  echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc"
-                        info "  source ~/.bashrc"
+                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc"
+                        echo "   source ~/.bashrc"
                     fi
                     ;;
             esac
             
             info ""
             info "For immediate use in this session, run:"
-            info "  export PATH=\"$INSTALL_DIR:\$PATH\""
-            info "  $BINARY_NAME --help"
+            echo "   export PATH=\"$INSTALL_DIR:\$PATH\""
+            echo "   $BINARY_NAME --help"
         else
             info "You can now run: $BINARY_NAME --help"
         fi
