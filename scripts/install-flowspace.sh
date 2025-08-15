@@ -90,18 +90,89 @@ VERSION="${FLOWSPACE_VERSION:-${VERSION:-latest}}"
 BASE_URL="${FLOWSPACE_BASE_URL:-${BASE_URL:-}}"
 USE_GCM_AUTH="${FLOWSPACE_USE_GCM_AUTH:-${USE_GCM_AUTH:-false}}"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Logging functions
-info() { echo "ℹ️  $*"; }
+info() { echo "$*"; }
 warn() { echo "⚠️  $*"; }
 error() { echo "❌  $*" >&2; }
 success() { echo "✅ $*"; }
+
+# Container and Docker detection functions
+detect_container_environment() {
+    # Check for .dockerenv file (most reliable)
+    if [[ -f "/.dockerenv" ]]; then
+        return 0
+    fi
+    
+    # Check cgroup for container indicators
+    if [[ -f "/proc/1/cgroup" ]]; then
+        local cgroup_content
+        cgroup_content=$(cat /proc/1/cgroup 2>/dev/null || echo "")
+        if [[ "$cgroup_content" == *"docker"* ]] || \
+           [[ "$cgroup_content" == *"kubepods"* ]] || \
+           [[ "$cgroup_content" == *"containerd"* ]]; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+check_docker_availability() {
+    # Check if Docker socket is available
+    if [[ -S "/var/run/docker.sock" ]]; then
+        return 0
+    fi
+    
+    # Check if docker command is available and can connect
+    if command -v docker >/dev/null 2>&1; then
+        if docker info >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+validate_docker_environment() {
+    local in_container
+    local docker_available
+    
+    in_container=$(detect_container_environment && echo "true" || echo "false")
+    docker_available=$(check_docker_availability && echo "true" || echo "false")
+    
+    if [[ "$in_container" == "true" ]]; then
+        info "Detected container environment (likely devcontainer)"
+        
+        if [[ "$docker_available" == "true" ]]; then
+            info "Docker is available (Docker-in-Docker or Docker-outside-of-Docker setup detected)"
+        else
+            error "Running in container but Docker is not accessible"
+            error "Flowspace requires Docker access to function properly"
+            error ""
+            error "For devcontainers, you need either:"
+            error "  1. Docker-in-Docker: Add 'docker-in-docker' feature to devcontainer.json"
+            error "  2. Docker-outside-of-Docker: Add 'docker-outside-of-docker' feature to devcontainer.json"
+            error ""
+            exit 1
+        fi
+    else
+        # Not in container - check if Docker is installed
+        if [[ "$docker_available" != "true" ]]; then
+            error "Docker is not installed or not running"
+            error "Flowspace requires Docker to function properly"
+            error ""
+            error "Please install Docker first:"
+            error "  • macOS: Download Docker Desktop from https://docker.com/products/docker-desktop"
+            error "  • Linux: Follow instructions at https://docs.docker.com/engine/install/"
+            error "  • Windows: Download Docker Desktop from https://docker.com/products/docker-desktop"
+            error ""
+            error "After installing Docker, make sure it's running and try again."
+            exit 1
+        fi
+    fi
+    
+    success "Docker environment validated successfully"
+}
 
 # Git Credential Manager integration
 get_github_token() {
@@ -278,7 +349,7 @@ install_dependencies() {
     local missing_deps=()
     
     # Check for required tools
-    for cmd in curl tar; do
+    for cmd in curl tar jq; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing_deps+=("$cmd")
         fi
@@ -683,6 +754,9 @@ main() {
     
     info "Detected system: $os/$arch ($distro distribution)"
     info "Install directory: $INSTALL_DIR"
+    
+    # Validate Docker environment
+    validate_docker_environment
     
     # Check permissions
     check_permissions
