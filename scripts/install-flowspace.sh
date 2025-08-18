@@ -307,6 +307,17 @@ detect_os() {
     esac
 }
 
+# Helper function to run commands with appropriate privileges
+run_with_privileges() {
+    if [[ $EUID -eq 0 ]]; then
+        # Already running as root
+        "$@"
+    else
+        # Not root, use sudo
+        sudo "$@"
+    fi
+}
+
 # Detect OS distribution/platform for package manager operations
 detect_distro() {
     local os
@@ -400,8 +411,8 @@ install_dependencies() {
             ;;
         debian)
             if command -v apt-get >/dev/null 2>&1; then
-                apt-get update -qq
-                apt-get install -y "${missing_deps[@]}"
+                run_with_privileges apt-get update -qq
+                run_with_privileges apt-get install -y "${missing_deps[@]}"
             else
                 error "apt-get not found on Debian-based system"
                 exit 1
@@ -409,9 +420,9 @@ install_dependencies() {
             ;;
         rhel)
             if command -v dnf >/dev/null 2>&1; then
-                dnf install -y "${missing_deps[@]}"
+                run_with_privileges dnf install -y "${missing_deps[@]}"
             elif command -v yum >/dev/null 2>&1; then
-                yum install -y "${missing_deps[@]}"
+                run_with_privileges yum install -y "${missing_deps[@]}"
             else
                 error "Neither dnf nor yum found on RHEL-based system"
                 exit 1
@@ -419,7 +430,7 @@ install_dependencies() {
             ;;
         alpine)
             if command -v apk >/dev/null 2>&1; then
-                apk add --no-cache "${missing_deps[@]}"
+                run_with_privileges apk add --no-cache "${missing_deps[@]}"
             else
                 error "apk not found on Alpine system"
                 exit 1
