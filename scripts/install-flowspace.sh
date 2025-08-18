@@ -2,6 +2,7 @@
 # Flowspace (Substrate) Installation Script
 # Supports: Debian/Ubuntu, RHEL/CentOS/Fedora, Alpine Linux
 # Usage: curl -L https://aka.ms/InstallFlowspace | bash
+#   or:  curl -L https://aka.ms/InstallFlowspace | FLOWSPACE_PRE_RELEASE=true bash
 #   or:  bash install-flowspace.sh [OPTIONS]
 #   or:  FLOWSPACE_BASE_URL="file:///path/to/releases" bash install-flowspace.sh
 #
@@ -10,6 +11,7 @@
 #   -d, --install-dir DIR   Installation directory (default: ~/.local/bin)
 #   --base-url URL          Override download URL (supports file://)
 #   --no-gcm                Disable Git Credential Manager authentication
+#   --pre-release           Include pre-release versions when fetching latest
 #   -h, --help              Show help message
 #
 # Environment variables:
@@ -17,6 +19,7 @@
 #   FLOWSPACE_INSTALL_DIR  - Installation directory (default: ~/.local/bin)
 #   FLOWSPACE_VERSION      - Version to install (default: latest)
 #   FLOWSPACE_USE_GCM_AUTH - Use Git Credential Manager for GitHub auth (default: true)
+#   FLOWSPACE_PRE_RELEASE  - Include pre-release versions (default: false)
 
 set -euo pipefail
 
@@ -39,6 +42,10 @@ while [[ $# -gt 0 ]]; do
             USE_GCM_AUTH="false"
             shift
             ;;
+        --pre-release)
+            PRE_RELEASE="true"
+            shift
+            ;;
         -h|--help)
             cat << EOF
 Flowspace (Substrate) Installation Script
@@ -50,6 +57,7 @@ Options:
     -d, --install-dir DIR   Installation directory (default: ~/.local/bin)
     --base-url URL          Override download URL (supports file://)
     --no-gcm                Disable Git Credential Manager authentication
+    --pre-release           Include pre-release versions when fetching latest
     -h, --help              Show this help message
 
 Environment variables:
@@ -57,12 +65,18 @@ Environment variables:
     FLOWSPACE_INSTALL_DIR   Installation directory (default: ~/.local/bin)
     FLOWSPACE_VERSION       Version to install
     FLOWSPACE_USE_GCM_AUTH  Use Git Credential Manager (true/false)
+    FLOWSPACE_PRE_RELEASE   Include pre-release versions (true/false)
 
 Examples:
     $0                                    # Install latest version
     $0 --version v1.0.0                  # Install specific version
     $0 --install-dir /usr/local/bin      # Install to system directory
+    $0 --pre-release                     # Install latest including pre-releases
     $0 --base-url file:///path/to/files  # Install from local files
+
+Quick install examples:
+    curl -L https://aka.ms/InstallFlowspace | bash
+    curl -L https://aka.ms/InstallFlowspace | FLOWSPACE_PRE_RELEASE=true bash
 
 EOF
             exit 0
@@ -89,6 +103,7 @@ INSTALL_DIR="${FLOWSPACE_INSTALL_DIR:-${INSTALL_DIR:-$(get_default_install_dir)}
 VERSION="${FLOWSPACE_VERSION:-${VERSION:-latest}}"
 BASE_URL="${FLOWSPACE_BASE_URL:-${BASE_URL:-}}"
 USE_GCM_AUTH="${FLOWSPACE_USE_GCM_AUTH:-${USE_GCM_AUTH:-false}}"
+PRE_RELEASE="${FLOWSPACE_PRE_RELEASE:-${PRE_RELEASE:-false}}"
 
 # Logging functions
 info() { echo "$*"; }
@@ -534,11 +549,18 @@ get_release_checksum() {
 
 # Get the latest release version from GitHub
 get_latest_version() {
-    local api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    local api_url
     local version
     local repo_visibility
     
-    info "Fetching latest version from GitHub..." >&2
+    # Choose API endpoint based on pre-release preference
+    if [[ "$PRE_RELEASE" == "true" ]]; then
+        api_url="https://api.github.com/repos/$GITHUB_REPO/releases"
+        info "Fetching latest version (including pre-releases) from GitHub..." >&2
+    else
+        api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+        info "Fetching latest version from GitHub..." >&2
+    fi
     
     # Detect if repo is private and show appropriate message
     repo_visibility=$(detect_repo_visibility "$GITHUB_REPO")
@@ -552,10 +574,22 @@ get_latest_version() {
     
     # Try to get version from GitHub API with authentication if available
     if command -v jq >/dev/null 2>&1; then
-        version=$(api_request "$api_url" | jq -r '.tag_name' 2>/dev/null || echo "")
+        if [[ "$PRE_RELEASE" == "true" ]]; then
+            # Get the first release from the list (could be pre-release)
+            version=$(api_request "$api_url" | jq -r '.[0].tag_name' 2>/dev/null || echo "")
+        else
+            # Get latest stable release
+            version=$(api_request "$api_url" | jq -r '.tag_name' 2>/dev/null || echo "")
+        fi
     else
         # Fallback without jq
-        version=$(api_request "$api_url" | grep -oP '"tag_name":\s*"\K[^"]+' 2>/dev/null || echo "")
+        if [[ "$PRE_RELEASE" == "true" ]]; then
+            # Get the first release from the list
+            version=$(api_request "$api_url" | grep -oP '"tag_name":\s*"\K[^"]+' | head -n1 2>/dev/null || echo "")
+        else
+            # Get latest stable release
+            version=$(api_request "$api_url" | grep -oP '"tag_name":\s*"\K[^"]+' 2>/dev/null || echo "")
+        fi
     fi
     
     if [[ -z "$version" ]] || [[ "$version" == "null" ]]; then
