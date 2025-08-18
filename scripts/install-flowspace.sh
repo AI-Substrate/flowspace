@@ -713,31 +713,29 @@ verify_installation() {
         if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
             warn "Install directory $INSTALL_DIR is not in your PATH"
             
-            # Provide platform-specific shell profile guidance
-            local os
-            os=$(uname -s)
-            case $os in
-                Darwin)
-                    info "Add it to your PATH by adding this line to your shell profile:"
-                    if [[ "$SHELL" == *"zsh"* ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
-                        echo "   source ~/.zshrc"
-                    else
-                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bash_profile"
-                        echo "   source ~/.bash_profile"
-                    fi
-                    ;;
-                Linux|*)
-                    info "Add it to your PATH by adding this line to your shell profile:"
-                    if [[ "$SHELL" == *"zsh"* ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
-                        echo "   source ~/.zshrc"
-                    else
-                        echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc"
-                        echo "   source ~/.bashrc"
-                    fi
-                    ;;
-            esac
+            # Provide shell profile guidance based on existing files
+            info "Add it to your PATH by adding this line to your shell profile:"
+            
+            # Check for existing profile files in order of preference
+            # .zshrc, .bashrc, .bash_profile, .profile
+            if [[ -f ~/.zshrc ]]; then
+                echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.zshrc"
+                echo "   source ~/.zshrc"
+            elif [[ -f ~/.bashrc ]]; then
+                echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bashrc"
+                echo "   source ~/.bashrc"
+            elif [[ -f ~/.bash_profile ]]; then
+                echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.bash_profile"
+                echo "   source ~/.bash_profile"
+            elif [[ -f ~/.profile ]]; then
+                echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.profile"
+                echo "   source ~/.profile"
+            else
+                # No profile files exist - suggest the most universal option
+                echo "   echo 'export PATH=\"$INSTALL_DIR:\$PATH\"' >> ~/.profile"
+                echo "   source ~/.profile"
+                echo "   # Note: ~/.profile works with most shells (bash, zsh, etc.)"
+            fi
             
             info ""
             info "For immediate use in this session, run:"
