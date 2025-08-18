@@ -1,6 +1,6 @@
 #!/bin/bash
 # Flowspace (Substrate) Installation Script
-# Supports: Debian/Ubuntu, RHEL/CentOS/Fedora, Alpine Linux
+# Supports: Debian/Ubuntu, RHEL/CentOS/Fedora
 # Usage: curl -L https://aka.ms/InstallFlowspace | bash
 #   or:  curl -L https://aka.ms/InstallFlowspace | FLOWSPACE_PRE_RELEASE=true bash
 #   or:  bash install-flowspace.sh [OPTIONS]
@@ -444,12 +444,9 @@ install_dependencies() {
             fi
             ;;
         alpine)
-            if command -v apk >/dev/null 2>&1; then
-                run_with_privileges apk add --no-cache "${missing_deps[@]}"
-            else
-                error "apk not found on Alpine system"
-                exit 1
-            fi
+            error "Alpine Linux support is currently not available"
+            error "Please use a different Linux distribution or Docker"
+            exit 1
             ;;
         *)
             error "Unknown distribution: $distro"

@@ -1,6 +1,30 @@
 # Flowspace
 
-Welcome to the official Flowspace releases repository. This repository contains release packages and installation scripts for Flowspace.
+Welcome to the official Flowspace releases repository. This repository contains release pa## Usage
+
+After installation, Flowspace provides a powerful CLI and MCP server for semantic codebase analysis:
+
+### 🚀 Getting Started
+
+```bash
+# Initialize flowspace in current repository (required first step)
+flowspace init
+```
+
+### 🔧 Core Pipeline
+
+```bash
+# Complete pipeline with all analysis stages
+flowspace full-scan
+```lation scripts for Flowspace.
+
+> ⚠️ **CRITICAL SECURITY WARNING** ⚠️
+>
+> **DO NOT USE WITH UNAPPROVED MODELS.** This tool provides LLMs with full access to entire codebases through its MCP server. Using Substrate/Flowspace with an unapproved model is equivalent to giving that model direct, unrestricted access to your codebase.
+>
+> **EXERCISE EXTREME CAUTION** when using the MCP server with tools like Claude Code or any other LLM-powered coding assistants. Only use models that have been explicitly approved by your organization's security team for handling sensitive code.
+>
+> By design, Substrate grants comprehensive codebase access to enable powerful context-aware features. Ensure you understand and accept these security implications before use.
 
 ## Installation
 
@@ -10,24 +34,36 @@ Welcome to the official Flowspace releases repository. This repository contains 
 curl -L https://aka.ms/InstallFlowspace | bash
 ```
 
-### Windows (PowerShell)
-```powershell
-Invoke-RestMethod https://aka.ms/InstallFlowspace | Invoke-Expression
+### Install Pre-Release Version
+
+To install the latest pre-release version (including beta releases):
+
+```bash
+curl -L https://aka.ms/InstallFlowspace | FLOWSPACE_PRE_RELEASE=true bash
 ```
 
 ### Manual Installation
 
-1. Download the latest release from the [Releases](https://github.com/AI-Substrate/flowspace/releases) page
-2. Extract the archive to your desired location
-3. Run the installation script:
-   ```bash
-   ./scripts/install-flowspace.sh
-   ```
-   
-   For Windows:
-   ```powershell
-   .\scripts\install-flowspace.ps1
-   ```
+You can also download and run the installation script manually:
+
+```bash
+# Download and run with options
+wget https://raw.githubusercontent.com/AI-Substrate/flowspace/main/scripts/install-flowspace.sh
+chmod +x install-flowspace.sh
+
+# Install latest stable version
+./install-flowspace.sh
+
+# Install latest pre-release version
+./install-flowspace.sh --pre-release
+
+# Install specific version
+./install-flowspace.sh --version v1.0.0
+
+# Install to custom directory
+./install-flowspace.sh --install-dir /usr/local/bin
+```
+
 
 ## What is Flowspace?
 
@@ -50,9 +86,10 @@ Flowspace enables coding agents to instantly "know" your code, dramatically redu
 - **Operating System**: Linux, macOS, Windows (with WSL)
 - **Architecture**: x86_64 (amd64), aarch64/arm64 (Apple Silicon)
 - **Platform Support**:
-  - Linux: Debian/Ubuntu, RHEL/CentOS/Fedora, Alpine Linux
+  - Linux: Debian/Ubuntu, RHEL/CentOS/Fedora
   - macOS: Intel and Apple Silicon
   - Windows: x86_64, arm64
+- **Container Support**: Docker (all platforms)
 - **Installation**: No admin privileges required (installs to `~/.local/bin`)
 - **Dependencies**: Git (optional, for authenticated downloads)
 
@@ -73,6 +110,7 @@ This repository contains installation scripts in the `/scripts` folder:
 - `scripts/install-flowspace.ps1` - Installation script for Windows PowerShell
 - Both scripts support:
   - Version selection (`--version` or `FLOWSPACE_VERSION`)
+  - Pre-release versions (`--pre-release` or `FLOWSPACE_PRE_RELEASE`)
   - Custom installation directories (`--install-dir` or `FLOWSPACE_INSTALL_DIR`)
   - Force reinstall (`--force` or `FLOWSPACE_FORCE`)
   - Local/custom download URLs (`--base-url` or `FLOWSPACE_BASE_URL`)
@@ -83,38 +121,80 @@ This repository contains installation scripts in the `/scripts` folder:
 
 After installation, Flowspace provides a powerful CLI and MCP server for semantic codebase analysis:
 
-### Basic Commands
+### � Getting Started
 
 ```bash
-# Analyze your current repository
-flowspace scan
-
-# Search for code semantically
-flowspace search "automated testing patterns"
-
-# Query specific nodes and relationships
-flowspace query --node-id "method:src/example.py:MyClass.my_method"
-
-# Generate analysis reports
-flowspace report --format markdown
-
-# Start MCP server for LLM integration
-flowspace mcp-server
+# Initialize flowspace in current repository (required first step)
+flowspace init
 ```
 
-### Advanced Features
+### �🔧 Core Pipeline
 
 ```bash
-# Search with embeddings
-flowspace search -E "error handling patterns"
+# Complete pipeline with all analysis stages
+flowspace full-scan
+```
 
-# Output in different formats
-flowspace query --output json
-flowspace query --output table
-flowspace query --output pretty
+### 🔍 Analysis & Query
 
-# Generate visualization data
-flowspace graph-viz
+```bash
+# Search code using natural language
+flowspace query "find authentication patterns"
+
+# Analyze architectural patterns
+flowspace analyze-relationships
+
+# Get detailed information about a specific node with relationships
+flowspace get-node <node-id>
+
+# List all node IDs from a condensed file
+flowspace list-node-ids
+
+# Interactive relationship viewer
+flowspace view-relationships
+
+# List available report plugins
+flowspace list-interesting-reports
+```
+
+### 📄 Documentation
+
+```bash
+# Generate documentation from analysis
+flowspace document
+```
+
+### 📦 Repository Management
+
+```bash
+# Add a repository to the registry
+flowspace repo add <repository-url>
+
+# List all registered repositories
+flowspace repo list
+
+# Remove a repository from the registry
+flowspace repo remove <repository-name>
+```
+
+### 🔧 Utilities
+
+```bash
+# Clone a repository
+flowspace clone <repository-url>
+
+# Analyze code structure (basic)
+flowspace analyze
+
+# Pre-build graph cache from condensed file
+flowspace build-graph
+```
+
+### 🤖 LLM Integration
+
+```bash
+# Launch MCP server for LLM agent integration
+flowspace mcp
 ```
 
 ## Support
