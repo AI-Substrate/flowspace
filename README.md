@@ -1,22 +1,6 @@
 # Flowspace
 
-Welcome to the official Flowspace releases repository. This repository contains release pa## Usage
-
-After installation, Flowspace provides a powerful CLI and MCP server for semantic codebase analysis:
-
-### 🚀 Getting Started
-
-```bash
-# Initialize flowspace in current repository (required first step)
-flowspace init
-```
-
-### 🔧 Core Pipeline
-
-```bash
-# Complete pipeline with all analysis stages
-flowspace full-scan
-```lation scripts for Flowspace.
+Welcome to the official Flowspace releases repository. This repository contains release packages and installation scripts for Flowspace.
 
 > ⚠️ **CRITICAL SECURITY WARNING** ⚠️
 >
@@ -63,7 +47,6 @@ chmod +x install-flowspace.sh
 # Install to custom directory
 ./install-flowspace.sh --install-dir /usr/local/bin
 ```
-
 
 ## What is Flowspace?
 
@@ -121,14 +104,14 @@ This repository contains installation scripts in the `/scripts` folder:
 
 After installation, Flowspace provides a powerful CLI and MCP server for semantic codebase analysis:
 
-### � Getting Started
+### 🚀 Getting Started
 
 ```bash
 # Initialize flowspace in current repository (required first step)
 flowspace init
 ```
 
-### �🔧 Core Pipeline
+### 🔧 Core Pipeline
 
 ```bash
 # Complete pipeline with all analysis stages
