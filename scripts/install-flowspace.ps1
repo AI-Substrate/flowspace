@@ -26,7 +26,7 @@ param(
     [string]$Version = $env:FLOWSPACE_VERSION,
     [string]$InstallDir = $env:FLOWSPACE_INSTALL_DIR,
     [string]$BaseUrl = $env:FLOWSPACE_BASE_URL,
-    [switch]$NoGcm = $false,
+    [switch]$NoGcm = $true,
     [switch]$PreRelease = [bool]($env:FLOWSPACE_PRE_RELEASE -eq "true"),
     [switch]$Force = [bool]($env:FLOWSPACE_FORCE -eq "true"),
     [switch]$Help = $false
@@ -90,22 +90,22 @@ $ErrorActionPreference = "Stop"
 # Logging functions
 function Write-Info { 
     param([string]$Message)
-    Write-Host "[INFO] $Message" -ForegroundColor Blue 
+    Write-Host "$Message" -ForegroundColor Blue 
 }
 
 function Write-Warn { 
     param([string]$Message)
-    Write-Host "[WARN] $Message" -ForegroundColor Yellow 
+    Write-Host "⚠️ $Message" -ForegroundColor Yellow 
 }
 
 function Write-Error-Custom { 
     param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red 
+    Write-Host "❌ $Message" -ForegroundColor Red 
 }
 
 function Write-Success { 
     param([string]$Message)
-    Write-Host "[SUCCESS] $Message" -ForegroundColor Green 
+    Write-Host "✅ $Message" -ForegroundColor Green 
 }
 
 # Welcome message
@@ -451,7 +451,7 @@ function Install-Binary {
     # Remove 'v' prefix if present
     $CleanVersion = $Version -replace '^v', ''
     
-    $ArchiveName = "flowspace-v$CleanVersion-windows-$Architecture.tar.gz"
+    $ArchiveName = "flowspace-v$CleanVersion-windows-$Architecture.zip"
     $BinaryNameInArchive = "flowspace-windows-$Architecture.exe"
     
     # Determine download URL
