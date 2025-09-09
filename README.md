@@ -10,19 +10,7 @@
 
 ## What is Flowspace?
 
-Flowspace (formerly Substrate) is your **Context Engineer** - an advanced semantic codebase analysis tool designed specifically for LLM coding agents. It performs deep semantic scans of entire codebases, creating comprehensive relationship graphs between all files, classes, methods, and concepts.
-
-### Key Features
-
-- **Semantic Code Understanding**: Creates detailed relationships between all code elements using AST parsing and SCIP analysis
-- **Cross-Repository Intelligence**: Can analyze local repos or remote repositories, building a knowledge graph across your entire organization
-- **Smart Content Generation**: Uses LLMs to generate intelligent summaries and embeddings for every code element
-- **Vector Search**: Find code concepts semantically, like "automated testing for Microsoft Fabric" or "plugin for our Flutter app"
-- **Context Engineering**: Provides LLM agents with immediate, comprehensive codebase knowledge for faster development
-- **Multi-Language Support**: Works with many programming languages through Tree-Sitter and specialized parsers
-- **Fast Graph Storage**: Uses NetworkX for high-performance graph operations that scale to hundreds of thousands of nodes
-
-Flowspace enables coding agents to instantly "know" your code, dramatically reducing the time needed to understand context and implement features across complex codebases.
+Flowspace is your **Context Engineer** - an advanced semantic codebase analysis tool designed specifically for LLM coding agents. It performs deep semantic scans of entire codebases, creating comprehensive relationship graphs between all files, classes, methods, and concepts.
 
 ## Prerequisites
 
